@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Circulation – PAD Progression Monitor</title>
+<style>
+:root{--ink:#16302B;--soft:#5C7873;--bg:#F4F7F6;--card:#fff;--bd:#E1E9E6;--ok:#3F7D5C;--watch:#C98A2C;--risk:#A8342A;--link:#2F5D62;--chip:#EDF1F0;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#E6F0ED;--soft:#9DB5AF;--bg:#0F1A18;--card:#172623;--bd:#27403B;--ok:#6FBF93;--watch:#E3B15A;--risk:#E37B6F;--link:#7DC1C8;--chip:#1F332F;color-scheme:dark}}
+*{box-sizing:border-box}html,body{margin:0}body{background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+.wrap{max-width:1080px;margin:0 auto;padding:12px 14px 40px}
+.banner{background:var(--chip);border:1px solid var(--bd);border-radius:10px;padding:8px 12px;font-size:12.5px;color:var(--soft);margin-bottom:10px}
+.banner b{color:var(--watch)}
+.backend-banner{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:6px 12px;font-size:12px;margin-bottom:10px}
+.backend-banner .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+.backend-banner .dot.on{background:var(--ok)}
+.backend-banner .dot.off{background:var(--risk)}
+h1{font-size:20px;margin:6px 0}h2{font-size:15px;margin:0 0 8px}
+nav{display:flex;gap:6px;overflow-x:auto;margin:8px 0 12px;padding-bottom:2px}
+nav button,.btn,select,input{font:inherit;color:var(--ink)}
+nav button{white-space:nowrap;border:1px solid var(--bd);background:var(--card);padding:7px 12px;border-radius:20px;cursor:pointer}
+nav button.on{background:var(--link);color:var(--card);border-color:var(--link)}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;min-width:0}
+.hero{display:grid;gap:12px;grid-template-columns:1.2fr 1fr 1fr}@media(max-width:760px){.hero{grid-template-columns:1fr}}
+.big{font-size:38px;font-weight:700;line-height:1}.lab{font-size:12px;color:var(--soft)}
+.pill{display:inline-block;padding:3px 10px;border-radius:12px;font-weight:600;font-size:13px;color:#fff}
+.ok{background:var(--ok)}.watch{background:var(--watch)}.risk{background:var(--risk)}.info{background:var(--link)}
+.tile .v{font-size:22px;font-weight:650}.tile .s{font-size:12px;color:var(--soft)}
+.up{color:var(--risk)}.dn{color:var(--ok)}.flat{color:var(--soft)}
+.bar{height:8px;background:var(--chip);border-radius:5px;overflow:hidden;margin:3px 0 9px}.bar i{display:block;height:100%;background:var(--link)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0}
+.btn{border:1px solid var(--bd);background:var(--card);padding:7px 12px;border-radius:8px;cursor:pointer}.btn.p{background:var(--link);color:var(--card);border-color:var(--link)}
+.btn.danger{border-color:var(--risk);color:var(--risk)}
+select,input{border:1px solid var(--bd);background:var(--card);border-radius:8px;padding:6px 8px;max-width:100%}
+.scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:5px 8px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}
+svg{width:100%;height:auto;display:block}.sm{font-size:12.5px;color:var(--soft)}
+.an{border-left:4px solid var(--watch);padding:6px 10px;margin:6px 0;background:var(--chip);border-radius:0 8px 8px 0;cursor:pointer}
+.an.risk{border-color:var(--risk)}.an.ok{border-color:var(--ok)}
+label.f{display:flex;flex-direction:column;font-size:12px;color:var(--soft);gap:2px}
+.hide{display:none}
+.upload-modal{background:var(--chip);border:1px solid var(--bd);border-radius:10px;padding:12px;margin:10px 0}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:13px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.15);transition:opacity 0.3s}
+</style></head><body><div class="wrap">
+<div class="banner"><b>Research prototype.</b> Algorithmic estimates are experimental, not clinically validated, and not a medical diagnosis. Smartwatch data cannot diagnose PAD. Validation status: <b>Phase 1</b> (personal-baseline trend and anomaly analysis; persistent SQLite database).</div>
+<div class="backend-banner" id="backendBanner">
+  <div><span class="dot off" id="backendDot"></span><span id="backendText">Connecting to FastAPI backend...</span></div>
+  <div id="backendActions"><button class="btn" style="padding:3px 8px;font-size:11px" onclick="checkBackendHealth()">Check Status</button></div>
+</div>
+<div class="row" style="justify-content:space-between">
+  <h1>Circulation · Vascular Functional Monitor</h1>
+  <span id="srcBadge" class="pill watch">INITIALIZING...</span>
+</div>
+<nav id="nav"></nav>
+<div id="uploadAlert"></div>
+<div id="view"></div>
+</div>
+<div id="toastBox"></div>
+
+<script>
+"use strict";
+const $=s=>document.querySelector(s);
+const M=[
+  {k:"steps",l:"Steps",u:"",d:-1},
+  {k:"dist",l:"Walking distance",u:"km",d:-1},
+  {k:"speed",l:"Walking speed",u:"km/h",d:-1},
+  {k:"active",l:"Active minutes",u:"min",d:-1},
+  {k:"rhr",l:"Resting HR",u:"bpm",d:1},
+  {k:"hrv",l:"HRV",u:"ms",d:-1},
+  {k:"spo2",l:"SpO₂",u:"%",d:-1},
+  {k:"sleep",l:"Sleep",u:"h",d:-1}
+];
+const W0={activity:20,walking:25,symptoms:20,cardio:15,anomaly:10,risk:10};
+const LS={
+  get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+};
+
+// Auto-detect API Base URL: relative if served via HTTP, or 127.0.0.1:8000 if opened as local file
+const API_BASE = (window.location.protocol.startsWith("http") && window.location.origin) ? "" : "http://127.0.0.1:8000";
+
+let S={
+  days:[],
+  walks:[],
+  profile:LS.get("c.profile",{}),
+  weights:LS.get("c.w",W0),
+  src:"none",
+  tab:"Dashboard",
+  range:90,
+  metric:"steps",
+  sim:{},
+  scn:"declining",
+  dups:0,
+  backendConnected:false,
+  dbStats:null,
+  uploadSummary:null
+};
+
+const mean=a=>{a=a.filter(x=>x!=null&&!isNaN(x));return a.length?a.reduce((x,y)=>x+y,0)/a.length:null};
+const sd=a=>{a=a.filter(x=>x!=null);if(a.length<3)return null;const m=mean(a);return Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/(a.length-1))};
+const cl=(v,a,b)=>Math.max(a,Math.min(b,v));const r1=v=>v==null?"–":(Math.round(v*10)/10).toString();
+const fd=t=>new Date(t).toISOString().slice(0,10);
+function slope(y){const p=y.map((v,i)=>[i,v]).filter(q=>q[1]!=null);const n=p.length;if(n<3)return null;const mx=mean(p.map(q=>q[0])),my=mean(p.map(q=>q[1]));let sxy=0,sxx=0,syy=0;p.forEach(([x,v])=>{sxy+=(x-mx)*(v-my);sxx+=(x-mx)**2;syy+=(v-my)**2});return{b:sxy/sxx,a:my-sxy/sxx*mx,r2:syy?sxy*sxy/(sxx*syy):0,n}}
+
+function notify(msg){
+  const b=$("#toastBox");
+  if(!b)return;
+  const t=document.createElement("div");
+  t.className="toast";
+  t.textContent=msg;
+  b.appendChild(t);
+  setTimeout(()=>{t.style.opacity="0";setTimeout(()=>t.remove(),300)},3500);
+}
+
+/* ---------- Backend API Integration ---------- */
+async function checkBackendHealth(){
+  try{
+    const r=await fetch(`${API_BASE}/api/health`);
+    if(r.ok){
+      const data=await r.json();
+      setBackendStatus(true, `FastAPI Backend Online (${data.database}: ${data.database_file.split(/[\/\\]/).pop()})`);
+      await fetchDatabaseStatus();
+      return true;
+    }
+  }catch(e){}
+  setBackendStatus(false, `Backend Offline (${API_BASE || 'http://127.0.0.1:8000'}). Start backend with: python -m backend.main`);
+  return false;
+}
+
+function setBackendStatus(online, text){
+  S.backendConnected=online;
+  const dot=$("#backendDot"), txt=$("#backendText");
+  if(dot){dot.className="dot "+(online?"on":"off");}
+  if(txt&&text){txt.textContent=text;}
+}
+
+async function fetchDatabaseStatus(){
+  try{
+    const r=await fetch(`${API_BASE}/api/status`);
+    if(r.ok){
+      S.dbStats=await r.json();
+    }
+  }catch(e){}
+}
+
+async function loadFromBackend(showNotice=false){
+  try{
+    const isOnline=await checkBackendHealth();
+    if(!isOnline)return false;
+
+    // Fetch settings, days, walks in parallel
+    const [dRes, wRes, sRes]=await Promise.all([
+      fetch(`${API_BASE}/api/days`),
+      fetch(`${API_BASE}/api/walks`),
+      fetch(`${API_BASE}/api/settings`)
+    ]);
+
+    if(sRes.ok){
+      const s=await sRes.json();
+      if(s.profile&&Object.keys(s.profile).length)S.profile=s.profile;
+      if(s.weights&&Object.keys(s.weights).length)S.weights=s.weights;
+    }
+
+    if(dRes.ok){
+      const days=await dRes.json();
+      if(days&&days.length>0){
+        S.days=days;
+        S.src="db";
+      }else{
+        S.days=[];
+        S.src="none";
+      }
+    }
+
+    if(wRes.ok){
+      S.walks=await wRes.json()||[];
+    }
+
+    if(showNotice&&S.days.length>0){
+      notify(`Loaded ${S.days.length} days of records from SQLite.`);
+    }
+
+    render();
+    return true;
+  }catch(err){
+    console.error("Backend load error:", err);
+    return false;
+  }
+}
+
+/* ---------- synthetic generator (DEMO only) ---------- */
+function rng(s){return()=>(s=(s*1664525+1013904223)%4294967296)/4294967296}
+function gen(scn,n=180){const R=rng(scn.length*977+7),g=()=>(R()+R()+R()-1.5)*1.2,out=[],t0=Date.now()-n*864e5;
+ const tr={healthy:0,stable:0,declining:-.3,improving:.15,noisy:0,missing:-.12}[scn];
+ for(let i=0;i<n;i++){const f=cl(i<30?0:(i-30)/(n-30),0,1),k=tr*f*(scn==="declining"?.8:1),ns=scn==="noisy"?2.2:1;
+  let d={date:fd(t0+i*864e5),steps:Math.round(8200*(1+k+.12*g()*ns)),dist:null,speed:+(4.6*(1+k*.5+.03*g()*ns)).toFixed(2),active:Math.round(48*(1+k+.14*g()*ns)),
+  rhr:+(64*(1-k*.18)+g()*1.5*ns).toFixed(1),hrv:+(52*(1+k*.5)+g()*4*ns).toFixed(1),spo2:+cl(96.6+k*1.2+g()*.5*ns,90,100).toFixed(1),sleep:+(7.1*(1+k*.15)+g()*.4*ns).toFixed(2),sym:0};
+  d.dist=+(d.steps*.00074).toFixed(2);
+  const pS=scn==="declining"?Math.max(0,f*.5-.03):scn==="stable"?.08:scn==="improving"?.12*(1-f):scn==="missing"?f*.3:0.02;d.sym=R()<pS?1+Math.floor(R()*3):0;
+  if(scn==="noisy"&&R()<.04)d.spo2=82;if(scn==="missing"&&R()<.28)["steps","dist","rhr","hrv","spo2"].forEach(m=>d[m]=null);
+  if(scn==="missing"&&i>n-9)M.forEach(m=>d[m.k]=null);out.push(d)}
+ return out}
+function load(scn){
+  S.days=gen(scn);
+  S.src="demo";
+  S.scn=scn;
+  S.walks=[];
+  const R=rng(5);
+  [40,70,100,130,160].forEach((i,j)=>{
+    const f=scn==="declining"?1-j*.06:1;
+    S.walks.push({date:S.days[i].date,dur:6,dist:Math.round(470*f*(.97+R()*.06)),avg:98+j,peak:118+j*2,rec:Math.round(26*f),spo2:96});
+  });
+  notify(`Loaded synthetic demo (${scn}). Note: Demo data is not saved to SQLite automatically.`);
+  render();
+}
+
+async function saveDemoToDatabase(){
+  if(S.src!=="demo"||!S.days.length){
+    alert("No demo data currently loaded to save.");
+    return;
+  }
+  if(!confirm(`Save all ${S.days.length} synthetic demo records and ${S.walks.length} walks to SQLite database?`))return;
+
+  try{
+    const res=await fetch(`${API_BASE}/api/days/bulk`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({days:S.days.map(d=>({...d,source:"demo"}))})
+    });
+    if(!res.ok)throw new Error("Bulk save failed");
+    // Also save walks
+    for(const w of S.walks){
+      await fetch(`${API_BASE}/api/walks`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(w)
+      });
+    }
+    notify("Demo data successfully saved to SQLite database!");
+    await loadFromBackend();
+  }catch(e){
+    alert("Failed to save to database: "+e.message);
+  }
+}
+
+async function resetDatabaseRecords(){
+  if(!confirm("Are you sure you want to clear all stored daily measurements and walks from the SQLite database?"))return;
+  try{
+    const res=await fetch(`${API_BASE}/api/reset?confirm=true`,{method:"POST"});
+    if(res.ok){
+      notify("SQLite database cleared.");
+      await loadFromBackend();
+    }else{
+      alert("Reset failed.");
+    }
+  }catch(e){
+    alert("Connection error: "+e.message);
+  }
+}
+
+/* ---------- File Upload & Backend Ingestion ---------- */
+async function uploadSmartwatchFile(file){
+  const alertBox=$("#uploadAlert");
+  if(alertBox)alertBox.innerHTML=`<div class="banner">Uploading and processing <b>${file.name}</b> in backend...</div>`;
+  const fdData=new FormData();
+  fdData.append("file", file);
+
+  try{
+    const res=await fetch(`${API_BASE}/api/upload`,{
+      method:"POST",
+      body:fdData
+    });
+    const summary=await res.json();
+    if(!res.ok){
+      throw new Error(summary.detail||"Upload rejected by backend");
+    }
+
+    S.uploadSummary=summary;
+    notify(`Imported ${summary.imported_days} new days, updated ${summary.updated_days} days.`);
+    await loadFromBackend();
+
+    if(alertBox){
+      const mapStr=Object.entries(summary.mapped_columns).map(([k,v])=>`<code>${v} → ${k}</code>`).join(", ");
+      const missStr=summary.missing_columns.length?`<br><span class="sm" style="color:var(--watch)">Optional metrics not found in file: ${summary.missing_columns.join(", ")}</span>`:"";
+      const rejStr=summary.rejected_reasons.length?`<br><span class="sm" style="color:var(--risk)">Data quality notices: ${summary.rejected_reasons.join("; ")}</span>`:"";
+      alertBox.innerHTML=`<div class="upload-modal">
+        <b>Import Summary: ${summary.filename}</b><br>
+        Processed ${summary.total_rows} rows · Saved <b>${summary.imported_days}</b> new day records, updated <b>${summary.updated_days}</b> existing · ${summary.duplicates_detected} duplicates resolved.<br>
+        <span class="sm">Detected column mappings: ${mapStr}</span>
+        ${missStr}${rejStr}
+        <div style="margin-top:6px"><button class="btn" onclick="$('#uploadAlert').innerHTML=''">Dismiss</button></div>
+      </div>`;
+    }
+  }catch(err){
+    console.error("Upload error:", err);
+    if(alertBox){
+      alertBox.innerHTML=`<div class="banner" style="border-color:var(--risk)"><b style="color:var(--risk)">Upload Error:</b> ${err.message}<br><button class="btn" style="margin-top:6px" onclick="$('#uploadAlert').innerHTML=''">Close</button></div>`;
+    }
+    // Fallback to client-side parsing if backend is not reachable
+    if(err.message.includes("Failed to fetch")||err.message.includes("NetworkError")){
+      if(confirm("Backend server appears unreachable. Would you like to parse locally in browser as fallback?")){
+        clientSideFallbackIngest(file);
+      }
+    }
+  }
+}
+
+function clientSideFallbackIngest(f){
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const t=rd.result;
+      const rows=f.name.endsWith(".json")?(j=>Array.isArray(j)?j:j.records)(JSON.parse(t)):csv(t);
+      ingest(rows);
+    }catch(e){alert("Client fallback import failed: "+e.message)}
+  };
+  rd.readAsText(f);
+}
+
+const ALI={rhr:["resting_hr","resting_heart_rate","heart_rate","hr","bpm"],hrv:["hrv"],spo2:["spo2","oxygen"],steps:["steps"],dist:["distance_km","distance"],speed:["walking_speed","speed"],active:["activity_minutes","active_minutes"],sleep:["sleep_hours","sleep"],sym:["symptom","symptoms"]};
+function ingest(rows){const by={},dup=new Set();let dups=0;
+ rows.forEach(r=>{const o={};for(const k in r)o[k.trim().toLowerCase()]=r[k];const t=new Date(o.timestamp||o.date||o.time);if(isNaN(t))return;const key=fd(t),id=(o.timestamp||o.date)+"|"+(o.user_id||"");if(dup.has(id))dups++;dup.add(id);
+  const d=by[key]||(by[key]={date:key,v:{}});for(const m in ALI){for(const a of ALI[m]){if(o[a]!==undefined&&o[a]!==""&&!isNaN(+o[a])){(d.v[m]=d.v[m]||[]).push(+o[a]);break}}}});
+ const days=Object.values(by).sort((a,b)=>a.date<b.date?-1:1).map(d=>{const o={date:d.date};for(const m in ALI){const a=d.v[m];o[m]=a?(m==="steps"||m==="dist"&&a.length>1?a.reduce((x,y)=>x+y,0):mean(a)):null}
+  if(o.spo2!=null&&o.spo2<=1)o.spo2*=100;if(o.spo2!=null&&(o.spo2<70||o.spo2>100))o.spo2=null;if(o.rhr!=null&&(o.rhr<25||o.rhr>220))o.rhr=null;o.sym=o.sym||0;return o});
+ if(days.length<3){alert("Could not read at least 3 days of data.");return}
+ S.days=days;S.src="import";S.walks=[];S.dups=dups;render()}
+function csv(t){const L=t.trim().split(/\r?\n/),H=L[0].split(",");return L.slice(1).map(l=>{const c=l.split(","),o={};H.forEach((h,i)=>o[h]=c[i]);return o})}
+
+/* ---------- analysis ---------- */
+function quality(days){const w=days.slice(-30);if(!w.length)return 0;const keys=M.map(m=>m.k);let c=0;w.forEach(d=>keys.forEach(k=>{if(d[k]!=null)c++}));let q=100*c/(w.length*keys.length);
+ const sp=w.filter(d=>d.spo2!=null&&d.spo2<88).length;q-=sp*3;const tail=days.slice(-3).every(d=>keys.every(k=>d[k]==null));if(tail)q-=15;q-=(S.dups||0)*.5;if(w.length<30)q-=(30-w.length)*.8;return Math.round(cl(q,0,100))}
+const qLab=q=>q>=95?"Excellent":q>=80?"Good":q>=60?"Limited":"Insufficient";
+function baseline(days){const b=days.slice(0,Math.min(21,Math.max(7,Math.floor(days.length/4)))),o={};M.forEach(m=>{const a=b.map(d=>d[m.k]);o[m.k]={m:mean(a),s:sd(a)}});o.sym=mean(b.map(d=>d.sym));o.n=b.length;return o}
+function win(days,end,n){return days.slice(Math.max(0,end-n+1),end+1)}
+function change(days,end,B,k){const c=mean(win(days,end,7).map(d=>d[k]));return{cur:c,base:B[k].m,pct:c!=null&&B[k].m?(c-B[k].m)/B[k].m*100:null}}
+function dec(days,end,B,k){const m=M.find(x=>x.k===k),c=change(days,end,B,k);return c.pct==null?null:Math.max(0,m.d*c.pct/100)}
+function comps(days,end,B,pf){const av=a=>{a=a.filter(x=>x!=null);return a.length?mean(a):null},sc=(v,s)=>v==null?null:cl(v/s*100,0,100);
+ const sym=mean(win(days,end,7).map(d=>d.sym));const z=win(days,end,14).filter(d=>M.some(m=>{const b=B[m.k];return d[m.k]!=null&&b.s>0&&m.d*(d[m.k]-b.m)/b.s>2.5}));
+ let r=null;const ra=pf;if(ra.age||ra.smoker||ra.diabetes||ra.htn||ra.pad){r=((ra.age>=65?2:ra.age>=50?1:0)+(ra.smoker?2:0)+(ra.diabetes?2:0)+(ra.htn?1:0)+(ra.pad?3:0))/10*100}
+ return{activity:sc(av([dec(days,end,B,"steps"),dec(days,end,B,"active")]),.3),walking:sc(av([dec(days,end,B,"dist"),dec(days,end,B,"speed")]),.3),symptoms:sym==null?null:cl((sym-(B.sym||0))/1.5*100,0,100),
+ cardio:sc(av([dec(days,end,B,"rhr"),dec(days,end,B,"hrv"),dec(days,end,B,"spo2")]),.15),anomaly:cl(z.length/14*250,0,100),risk:r}}
+function vfps(c,w){let s=0,t=0;for(const k in w){if(c[k]!=null){s+=c[k]*w[k];t+=w[k]}}return t?s/t:null}
+function analyse(){const D=S.days;if(D.length<3)return null;const B=baseline(D),hist=[];
+ for(let i=Math.min(13,D.length-1);i<D.length;i++){hist.push({i,date:D[i].date,v:vfps(comps(D,i,B,S.profile),S.weights)})}
+ const end=D.length-1,c=comps(D,end,B,S.profile),score=hist.length?hist[hist.length-1].v:null,q=quality(D),n=D.length;
+ const sl=slope(hist.slice(-30).map(h=>h.v));let fc=null,conf=null,note;
+ if(n<7)note="Not enough longitudinal data.";else{note=n<14?"Early trend estimate – low confidence.":n<30?"Moderate longitudinal evidence.":"Longitudinal prediction available.";
+  if(sl){const L=hist.length-1,f=h=>cl(sl.a+sl.b*(Math.min(29,L)+h),0,100);fc={7:f(7),30:f(30),90:f(90)};conf=cl((.3+.45*sl.r2+.25*Math.min(n/60,1))*q/100,.05,.9)}}
+ let status="STABLE",tone="ok";let dl=fc&&score!=null?fc[30]-score:0;if(sl&&sl.r2<.15)dl=0;
+ if(score==null)status="NO DATA";else if(score>=60||(score>=45&&dl>6)){status="DETERIORATING";tone="risk"}else if(score>=30||(dl>5&&score>=20)){status="WATCH";tone="watch"}else if(dl<-5&&score<35){status="IMPROVING"}
+ const dir=fc?(dl>5?"Potential deterioration":dl<-5?"Improving":"Stable"):null;
+ return{B,hist,c,score,q,fc,conf,note,status,tone,dir,slope:sl,end}}
+function anomalies(A){const D=S.days,out=[];M.forEach(m=>{const ch=change(D,A.end,A.B,m.k);if(ch.pct==null)return;const bad=m.d*ch.pct;
+  let run=0;for(let i=A.end;i>=0;i--){const v=D[i][m.k],b=A.B[m.k].m;if(v!=null&&b&&m.d*(v-b)/b>.08)run++;else break}
+  if(bad>10)out.push({k:m.k,tone:bad>20?"risk":"watch",t:`${m.l} is ${Math.abs(Math.round(ch.pct))}% ${ch.pct<0?"below":"above"} your baseline (7-day average).`+(run>=3?` Pattern has persisted ${run} days.`:" Single-window observation."),lvl:run>=5?"Trend requires attention":run>=3?"Pattern detected":"Observation"})});
+ const ss=slope(D.slice(-21).map(d=>d.speed));if(ss&&ss.b<-.01&&ss.r2>.3)out.push({k:"speed",tone:"watch",t:"Walking speed has declined gradually over the last 3 weeks.",lvl:"Pattern detected"});
+ const s7=mean(D.slice(-14).map(d=>d.sym)),s0=mean(D.slice(-28,-14).map(d=>d.sym));if(s7!=null&&s0!=null&&s7>s0+.2)out.push({k:"sym",tone:"watch",t:"Symptom frequency has increased over the last two weeks.",lvl:"Pattern detected"});
+ if(A.q<80)out.push({k:"q",tone:"watch",t:"Data quality is reduced because wearable measurements are missing.",lvl:"Observation"});
+ if(!out.length)out.push({k:"ok",tone:"ok",t:"No sustained departures from your personal baseline detected.",lvl:"Observation"});return out}
+
+/* ---------- charts ---------- */
+function chart(series,o){o=o||{};const W=600,H=200,P=30,all=series.flatMap(s=>s.y).filter(v=>v!=null);if(!all.length)return"<p class=sm>No data.</p>";
+ let lo=o.lo!=null?o.lo:Math.min(...all),hi=o.hi!=null?o.hi:Math.max(...all);if(hi===lo){hi+=1;lo-=1}const n=Math.max(...series.map(s=>s.y.length+(s.off||0)));
+ const X=i=>P+i/(n-1||1)*(W-P-8),Y=v=>H-22-(v-lo)/(hi-lo)*(H-34);let g=`<svg viewBox="0 0 ${W} ${H}" role="img">`;
+ for(let k=0;k<=3;k++){const v=lo+(hi-lo)*k/3,y=Y(v);g+=`<line x1="${P}" x2="${W-8}" y1="${y}" y2="${y}" stroke="var(--bd)"/><text x="2" y="${y+4}" font-size="10" fill="var(--soft)">${r1(v)}</text>`}
+ series.forEach(s=>{let d="",pen=false;s.y.forEach((v,i)=>{if(v==null){pen=false;return}d+=(pen?"L":"M")+X(i+(s.off||0)).toFixed(1)+","+Y(v).toFixed(1);pen=true});g+=`<path d="${d}" fill="none" stroke="${s.c||"var(--link)"}" stroke-width="${s.w||2}" ${s.dash?'stroke-dasharray="5 4"':""}/>`});
+ (o.marks||[]).forEach(m=>{g+=`<circle cx="${X(m.i)}" cy="${H-8}" r="3.5" fill="${m.c}"><title>${m.t}</title></circle>`});
+ if(o.base!=null)g+=`<line x1="${P}" x2="${W-8}" y1="${Y(o.base)}" y2="${Y(o.base)}" stroke="var(--soft)" stroke-dasharray="2 3"/>`;
+ (o.labels||[]).forEach(l=>{g+=`<text x="${X(l.i)}" y="${H-1}" font-size="10" fill="var(--soft)" text-anchor="middle">${l.t}</text>`});return g+"</svg>"}
+
+/* ---------- live Bluetooth ---------- */
+const BT={dev:null,hr:null,rr:[],samples:[],sp:[],spo2:null,dist:0,lastT:0,bat:null,log:[],state:"Not connected",caps:{},bad:0,retry:0,lastFlush:0};
+const blog=m=>{BT.log.unshift(new Date().toLocaleTimeString()+" "+m);BT.log=BT.log.slice(0,8);paintLive()};
+function sfl(v,o){const r=v.getUint16(o,true);let m=r&4095,e=r>>12;if(m>=2048)m-=4096;if(e>=8)e-=16;return m*Math.pow(10,e)}
+function rmssd(a){const r=a.filter(x=>x>300&&x<2000);if(r.length<20)return null;let s=0,n=0;for(let i=1;i<r.length;i++){const d=r[i]-r[i-1];if(Math.abs(d)<.2*r[i-1]){s+=d*d;n++}}return n>10?Math.sqrt(s/n):null}
+function liveDay(){const t=fd(Date.now());let d=S.days[S.days.length-1];if(!d||d.date!==t){d={date:t,steps:null,dist:null,speed:null,active:null,rhr:null,hrv:null,spo2:null,sleep:null,sym:0};S.days.push(d)}return d}
+async function flush(){if(S.src!=="live")return;const d=liveDay(),t0=new Date().setHours(0,0,0,0),h=BT.samples.filter(x=>x[0]>=t0).map(x=>x[1]);
+ if(h.length>=60){const s=h.slice().sort((a,b)=>a-b);d.rhr=+s[Math.floor(s.length*.1)].toFixed(1)}
+ const hv=rmssd(BT.rr);if(hv)d.hrv=+hv.toFixed(1);if(BT.spo2)d.spo2=BT.spo2;if(BT.dist>0)d.dist=+Math.max(d.dist||0,BT.dist/1000).toFixed(2);
+ const mv=BT.sp.filter(x=>x>.3);if(mv.length>20)d.speed=+(mean(mv)*3.6).toFixed(2);
+ LS.set("c.live",S.days.slice(-365));
+ BT.lastFlush=Date.now();
+ // Sync live reading to backend database
+ if(S.backendConnected){
+   try{
+     await fetch(`${API_BASE}/api/days/${d.date}`,{
+       method:"PUT",
+       headers:{"Content-Type":"application/json"},
+       body:JSON.stringify({rhr:d.rhr,hrv:d.hrv,spo2:d.spo2,dist:d.dist,speed:d.speed,source:"live"})
+     });
+   }catch(e){}
+ }}
+function after(){if(Date.now()-BT.lastFlush>10000)flush();paintLive()}
+function onHR(e){const v=e.target.value,f=v.getUint8(0);let i=1,hr;if(f&1){hr=v.getUint16(i,true);i+=2}else{hr=v.getUint8(i);i++}if(f&8)i+=2;if(f&16){while(i+1<v.byteLength){BT.rr.push(v.getUint16(i,true)/1024*1000);i+=2}}
+ if(hr>25&&hr<230){BT.hr=hr;BT.samples.push([Date.now(),hr]);if(BT.samples.length>6000)BT.samples.shift()}else BT.bad++;BT.rr=BT.rr.slice(-300);after()}
+function onOx(e){const v=e.target.value,s=sfl(v,1);if(s>=70&&s<=100){BT.spo2=Math.round(s*10)/10}else BT.bad++;after()}
+function onRsc(e){const v=e.target.value,sp=v.getUint16(1,true)/256,n=Date.now();if(BT.lastT&&sp>0)BT.dist+=sp*Math.min(5,(n-BT.lastT)/1000);BT.lastT=n;BT.sp.push(sp);if(BT.sp.length>2000)BT.sp.shift();after()}
+async function btConnect(){
+ if(!navigator.bluetooth){blog("Web Bluetooth is not available in this browser. Use Chrome or Edge on desktop or Android (not iOS Safari).");return}
+ try{BT.state="Choosing device…";paintLive();
+  const dev=await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:["heart_rate","pulse_oximeter","running_speed_and_cadence","battery_service","device_information","generic_access"]});
+  if(S.src!=="live"){S.days=LS.get("c.live",[]);S.walks=[];S.src="live"}
+  BT.dev=dev;dev.addEventListener("gattserverdisconnected",()=>{BT.state="Disconnected";blog("Device disconnected");if(BT.retry<3&&BT.dev){BT.retry++;setTimeout(()=>link(),2500)}});
+  BT.retry=0;await link()}
+ catch(e){BT.state="Not connected";blog(/Security|permissions policy|disallowed/i.test(e.message)?"Bluetooth is blocked in this embedded view. Open the page in its own browser tab (Chrome/Edge, https) or run the file from localhost.":e.name==="NotFoundError"?"No device chosen.":"Connection failed: "+e.message)}}
+async function link(){try{const g=await BT.dev.gatt.connect();BT.state="Connected: "+(BT.dev.name||"device");BT.caps={};
+ const tryS=async(sv,ch,fn,key)=>{try{const s=await g.getPrimaryService(sv),c=await s.getCharacteristic(ch);await c.startNotifications();c.addEventListener("characteristicvaluechanged",fn);BT.caps[key]=1}catch(e){BT.caps[key]=0}};
+ await tryS("heart_rate","heart_rate_measurement",onHR,"Heart rate / RR");await tryS("pulse_oximeter","plx_continuous_measurement",onOx,"SpO₂ (continuous)");if(!BT.caps["SpO₂ (continuous)"])await tryS("pulse_oximeter","plx_spot_check_measurement",onOx,"SpO₂ (spot check)");await tryS("running_speed_and_cadence","rsc_measurement",onRsc,"Walking speed / distance");
+ try{const s=await g.getPrimaryService("battery_service"),c=await s.getCharacteristic("battery_level");BT.bat=(await c.readValue()).getUint8(0)}catch(e){}
+ blog("Connected. "+Object.keys(BT.caps).filter(k=>BT.caps[k]).join(", ")||"No supported services found");if(!Object.values(BT.caps).some(x=>x))blog("This device exposes none of the standard health services. Enable heart-rate broadcast on the watch or use a different device.")}
+ catch(e){BT.state="Connection failed";blog("Could not connect: "+e.message)}paintLive()}
+function btDisc(){const d=BT.dev;BT.dev=null;if(d&&d.gatt.connected)d.gatt.disconnect();flush();BT.state="Not connected";blog("Disconnected by user");render()}
+function liveInner(){const smp=BT.samples.slice(-180).map(x=>x[1]),hv=rmssd(BT.rr),dd=S.src==="live"?S.days.length:0,t=(l,v,u)=>`<div class="card tile"><div class="lab">${l}</div><div class="v">${v==null?"–":v} <span class="lab">${u}</span></div></div>`;
+ return `<div class="grid" style="margin-top:12px">${t("Heart rate",BT.hr,"bpm")}${t("HRV (RMSSD)",hv&&r1(hv),"ms")}${t("SpO₂",BT.spo2,"%")}${t("Session distance",BT.dist?r1(BT.dist/1000):null,"km")}${t("Battery",BT.bat,"%")}${t("Readings",BT.samples.length,"")}</div>
+ <div class="card" style="margin-top:12px"><h2>Live heart rate</h2>${smp.length>2?chart([{y:smp}]):"<p class=sm>Waiting for readings…</p>"}<div class="sm">${BT.bad} implausible readings discarded · ${dd} day(s) stored in this browser. Resting HR is estimated as the 10th percentile of today's readings (needs 60+). HRV needs RR intervals from the device.</div></div>
+ <div class="card" style="margin-top:12px"><h2>Connection log</h2>${BT.log.map(l=>`<div class="sm">${l}</div>`).join("")||"<div class=sm>No events yet.</div>"}</div>`}
+function liveView(){const sup=!!navigator.bluetooth;return `<div class="card"><h2>Live smartwatch connection (Bluetooth)</h2><p><span class="pill ${BT.state.startsWith("Connected")?"ok":"watch"}" id="btState">${BT.state}</span> ${sup?"":"<b>Web Bluetooth unavailable in this browser.</b>"}</p>
+ <div class="row"><button class="btn p" id="btConn">Connect watch / sensor</button><button class="btn" id="btDisc">Disconnect &amp; save</button></div>
+ <p class="sm"><b>All nearby Bluetooth devices are shown</b> — pick any device from the browser popup. Health metrics (heart rate, HRV, SpO₂, walking speed) are read automatically if the device supports standard BLE health services. Connecting switches the dashboard to <b>live data</b>; live days automatically sync to your SQLite database.</p>
+ <p class="sm"><b>Pairing tips:</b> Many watches only expose heart rate when set to broadcast it (Garmin: Broadcast Heart Rate; Fitbit/Polar/Wahoo: HR broadcast mode; Galaxy Watch: use a Bluetooth HR-broadcast app). Apple Watch does not expose standard BLE heart rate to browsers; import its Apple Health export as CSV instead.</p></div><div id="lv">${liveInner()}</div>`}
+function paintLive(){const e=$("#lv");if(e)e.innerHTML=liveInner();const s=$("#btState");if(s){s.textContent=BT.state;s.className="pill "+(BT.state.startsWith("Connected")?"ok":"watch")}}
+function liveBind(){const c=$("#btConn");if(c)c.onclick=btConnect;const d=$("#btDisc");if(d)d.onclick=btDisc}
+
+/* ---------- views ---------- */
+const TABS=["Dashboard","Live Watch","Trends","Progression","Walk & Symptoms","Wearable Data","Reports","Settings"];
+function tile(m,A){const D=S.days,cur=D[D.length-1][m.k],a7=mean(D.slice(-7).map(d=>d[m.k])),a30=mean(D.slice(-30).map(d=>d[m.k])),ch=change(D,A.end,A.B,m.k),bad=ch.pct!=null?m.d*ch.pct:0;
+ const cls=bad>8?"up":bad<-8?"dn":"flat",ar=ch.pct==null?"":ch.pct>2?"↑":ch.pct<-2?"↓":"→";
+ return `<div class="card tile"><div class="lab">${m.l}</div><div class="v">${r1(cur)} <span class="lab">${m.u}</span></div><div class="s">7d ${r1(a7)} · 30d ${r1(a30)}</div><div class="s ${cls}">${ar} ${ch.pct==null?"–":r1(ch.pct)+"% vs baseline"}</div></div>`}
+
+function dash(A){const f=A.fc,t=A.tone;const cname={activity:"Activity decline",walking:"Walking performance",symptoms:"Symptoms",cardio:"Cardiovascular response",anomaly:"Longitudinal anomalies",risk:"Clinical / risk factors"};
+ const tw=Object.keys(S.weights).reduce((s,k)=>s+(A.c[k]!=null?S.weights[k]:0),0)||1;
+ const contrib=Object.keys(A.c).filter(k=>A.c[k]!=null).map(k=>({k,v:A.c[k]*S.weights[k]/tw})).sort((a,b)=>b.v-a.v);
+ const last=S.days[S.days.length-1],an=anomalies(A);
+ return `<div class="hero"><div class="card"><div class="lab">Vascular Functional Status</div><div style="margin:6px 0"><span class="pill ${t}">${A.status}</span></div><div class="big">${A.score==null?"–":Math.round(A.score)}<span class="lab"> / 100 VFPS</span></div><div class="sm">Compared with your personal baseline (first ${A.B.n} days). Research score – not a clinical diagnosis.</div></div>
+ <div class="card"><div class="lab">AI forecast (linear trend model)</div>${f?`<table><tr><td>7 days</td><td><b>${Math.round(f[7])}</b></td></tr><tr><td>30 days</td><td><b>${Math.round(f[30])}</b></td></tr><tr><td>90 days</td><td><b>${Math.round(f[90])}</b></td></tr></table><div class="sm">${A.dir} · confidence ${Math.round(A.conf*100)}%</div>`:`<p>${A.note}</p>`}<div class="sm">${A.note}</div></div>
+ <div class="card"><div class="lab">Data quality</div><div class="big">${A.q}</div><div class="sm">${qLab(A.q)} · last data ${last.date}</div><div class="sm">Storage: SQLite persistent · Model: VF-Trend v0.1</div></div></div>
+ <h2 style="margin-top:14px">Wearable metrics</h2><div class="grid">${M.map(m=>tile(m,A)).join("")}</div>
+ <div class="grid" style="margin-top:12px"><div class="card" style="grid-column:1/-1"><h2>Progression timeline</h2>${timeline(A)}</div>
+ <div class="card"><h2>Why the score is ${A.score==null?"unavailable":Math.round(A.score)}</h2>${contrib.map(c=>`<div class="sm">${cname[c.k]} · ${r1(c.v)} pts (weight ${S.weights[c.k]}%)</div><div class="bar"><i style="width:${cl(c.v/(A.score||1)*100,0,100)}%"></i></div>`).join("")||"<p class=sm>No components available.</p>"}<div class="sm">Components without data are excluded and weights renormalised; missing data is never treated as a condition.</div></div>
+ <div class="card"><h2>AI detected changes</h2>${an.map(a=>`<div class="an ${a.tone}" data-k="${a.k}"><b>${a.lvl}</b><br>${a.t}</div>`).join("")}<div class="sm">Select a change to inspect its measurements in Trends.</div></div></div>
+ <div class="sm" style="margin-top:12px">This page states patterns that may warrant clinical evaluation if they persist. It does not state that you have PAD. If you have rest pain, a foot wound, or a cold, discoloured foot, seek medical evaluation promptly.</div>`}
+
+function timeline(A){const days=S.range,h=A.hist.slice(-days),ys=h.map(x=>x.v),marks=[];h.forEach((x,i)=>{const d=S.days[x.i];if(d.sym)marks.push({i,c:"var(--watch)",t:`${d.date} symptom (severity ${d.sym})`});if(S.walks.some(w=>w.date===d.date))marks.push({i,c:"var(--link)",t:`${d.date} walk test`})});
+ const ser=[{y:ys}];if(A.fc&&A.slope){const L=A.hist.length-1,s=[];for(let k=0;k<=30;k++)s.push(cl(A.slope.a+A.slope.b*(Math.min(29,L)+k),0,100));ser.push({y:s,off:ys.length-1,dash:1,c:"var(--risk)",w:1.8})}
+ return `<div class="row">${[7,30,90,180,365].map(r=>`<button class="btn ${S.range===r?"p":""}" data-r="${r}">${{7:"7D",30:"30D",90:"90D",180:"6M",365:"1Y"}[r]}</button>`).join("")}</div>${chart(ser,{lo:0,hi:100,marks,labels:[{i:0,t:h[0]?h[0].date:""},{i:ys.length-1,t:h.length?h[h.length-1].date:""}]})}<div class="sm">Line: VFPS · dashed: 30-day forecast · amber dots: symptoms · blue dots: walk tests</div>`}
+
+function trends(A){const m=M.find(x=>x.k===S.metric),D=S.days.slice(-S.range),y=D.map(d=>d[m.k]),ew=[];let e=null;y.forEach(v=>{if(v!=null)e=e==null?v:.25*v+.75*e;ew.push(e)});
+ const sl=slope(y),roll=y.map((_,i)=>mean(y.slice(Math.max(0,i-6),i+1)));const ch=change(S.days,A.end,A.B,m.k);
+ const out=[];S.days.slice(-S.range).forEach((d,i)=>{const b=A.B[m.k];if(d[m.k]!=null&&b.s>0&&Math.abs((d[m.k]-b.m)/b.s)>2.5)out.push({i,c:"var(--risk)",t:d.date+" unusual vs your baseline"})});
+ const cors=[["sleep","rhr"],["steps","rhr"],["dist","sym"],["speed","sym"],["sleep","steps"]].map(([a,b])=>{const p=S.days.filter(d=>d[a]!=null&&d[b]!=null);if(p.length<10)return null;const ma=mean(p.map(d=>d[a])),mb=mean(p.map(d=>d[b]));let n=0,sa=0,sb=0;p.forEach(d=>{n+=(d[a]-ma)*(d[b]-mb);sa+=(d[a]-ma)**2;sb+=(d[b]-mb)**2});const r=n/Math.sqrt(sa*sb||1);return `<tr><td>${a} vs ${b}</td><td>${r.toFixed(2)}</td><td>${Math.abs(r)<.2?"weak":Math.abs(r)<.5?"moderate":"strong"} ${r<0?"inverse":"positive"} association</td></tr>`}).filter(Boolean).join("");
+ return `<div class="card"><div class="row"><select id="metSel">${M.map(x=>`<option value="${x.k}" ${x.k===S.metric?"selected":""}>${x.l}</option>`).join("")}</select>${[7,30,90,180].map(r=>`<button class="btn ${S.range===r?"p":""}" data-r="${r}">${r}d</button>`).join("")}</div>
+ ${chart([{y,c:"var(--soft)",w:1},{y:roll,w:2.2},{y:ew,c:"var(--watch)",w:1.5,dash:1}],{base:A.B[m.k].m,marks:out})}
+ <div class="sm">Grey: daily · blue: 7-day mean · amber dashed: EWMA · dotted line: personal baseline · red dots: anomalous days (|z| &gt; 2.5 vs baseline)</div>
+ <table style="margin-top:8px"><tr><td>Baseline</td><td>${r1(A.B[m.k].m)} ${m.u}</td><td>Current 7d</td><td>${r1(ch.cur)} (${ch.pct==null?"–":r1(ch.pct)+"%"})</td></tr><tr><td>Trend slope</td><td>${sl?r1(sl.b*30)+" ${m.u}/30 d".replace("${m.u}",m.u):"–"}</td><td>Variability (SD)</td><td>${r1(sd(y))}</td></tr></table></div>
+ <div class="card" style="margin-top:12px"><h2>Correlation engine</h2><div class="scroll"><table>${cors||"<tr><td>Not enough data.</td></tr>"}</table></div><div class="sm">Correlation describes association, not causation.</div></div>`}
+
+function progression(A){const B=A.B;let sim="";const names={steps:"Activity −%",speed:"Walking speed −%",rhr:"Resting HR +%",sleep:"Sleep −%",sym:"Symptom days/wk +"};
+ const D=JSON.parse(JSON.stringify(S.days));const sm=S.sim;D.slice(-14).forEach(d=>{if(sm.steps){d.steps*=1-sm.steps/100;d.dist*=1-sm.steps/100;d.active*=1-sm.steps/100}if(sm.speed)d.speed*=1-sm.speed/100;if(sm.rhr)d.rhr*=1+sm.rhr/100;if(sm.sleep)d.sleep*=1-sm.sleep/100;if(sm.sym)d.sym=Math.min(3,d.sym+sm.sym/7*1.5)});
+ const sc=vfps(comps(D,D.length-1,B,S.profile),S.weights);
+ return `<div class="card"><h2>Digital biomarkers</h2><div class="grid">${[["Mobility Decline Index",A.c.activity,A.c.walking],["Exercise Response (walk tests)",null],["Recovery Index",A.c.cardio],["Symptom Burden Index",A.c.symptoms],["Vascular Functional Trend (VFPS)",A.score]].map(([t,a,b])=>{const v=b!=null&&a!=null?(a+b)/2:a;return `<div><div class="lab">${t}</div><b>${v==null?"n/a":Math.round(v)}</b><div class="bar"><i style="width:${v||0}%"></i></div></div>`}).join("")}</div><div class="sm">0 = no departure from your baseline, 100 = large departure. Exercise Response needs logged walk tests with HR recovery.</div></div>
+ <div class="card" style="margin-top:12px"><h2>Progression simulation</h2>${Object.keys(names).map(k=>`<label class="f">${names[k]}: <b>${sm[k]||0}</b><input type="range" min="0" max="${k==="sym"?7:30}" value="${sm[k]||0}" data-sim="${k}"></label>`).join("")}<p>Simulated VFPS: <b>${sc==null?"–":Math.round(sc)}</b> (current ${A.score==null?"–":Math.round(A.score)}). <i>Simulation – not a clinical prediction.</i></p></div>`}
+
+function walks(){const sy=S.days.filter(d=>d.sym).slice(-60);const f14=S.days.slice(-14).filter(d=>d.sym).length,p14=S.days.slice(-28,-14).filter(d=>d.sym).length;
+ return `<div class="grid"><div class="card"><h2>Log 6-minute walk test (clinic/self-timed)</h2><div class="row"><label class="f">Distance m<input id="wd" type="number"></label><label class="f">Avg HR<input id="wa" type="number"></label><label class="f">Peak HR<input id="wp" type="number"></label><label class="f">HR recovery (bpm, 1 min)<input id="wr" type="number"></label><label class="f">Min SpO₂<input id="ws" type="number"></label></div><button class="btn p" id="addW">Save walk test to Database</button>
+ <div class="scroll"><table><tr><th>Date</th><th>m</th><th>Speed km/h</th><th>Avg</th><th>Peak</th><th>Recovery</th><th>vs first</th></tr>${S.walks.map((w,i)=>`<tr><td>${w.date}</td><td>${w.dist}</td><td>${r1(w.dist/6*.06)}</td><td>${w.avg||"–"}</td><td>${w.peak||"–"}</td><td>${w.rec||"–"}</td><td>${i?r1((w.dist-S.walks[0].dist)/S.walks[0].dist*100)+"%":"–"}</td></tr>`).join("")}</table></div><div class="sm">Stop immediately if you feel pain, dizziness or chest tightness.</div></div>
+ <div class="card"><h2>Symptom log</h2><div class="row"><select id="sy"><option>Calf cramps while walking</option><option>Leg heaviness</option><option>Cold feet</option><option>Numbness or tingling</option><option>Leg or foot pain at rest</option></select><select id="sv"><option value="1">Mild</option><option value="2">Moderate</option><option value="3">Severe</option></select><button class="btn p" id="addS">Log today to Database</button></div>
+ <p class="sm">${f14>p14?"Symptoms are becoming more frequent.":"Symptom burden has remained stable or decreased."} (${f14} symptom days in last 14 vs ${p14} in the 14 before)</p><div class="scroll"><table>${sy.slice(-12).reverse().map(d=>`<tr><td>${d.date}</td><td>${d.symName||"Leg symptom"}</td><td>severity ${d.sym}</td></tr>`).join("")}</table></div>
+ <div class="sm">Rest pain, a non-healing foot wound, or a cold pale foot warrant prompt medical evaluation.</div></div></div>`}
+
+function wearable(A){const D=S.days,rows=[[ "Metric","Available in DB","Days with data"]].concat(M.map(m=>[m.l,D.some(d=>d[m.k]!=null)?"Yes":"No",D.filter(d=>d[m.k]!=null).length]));
+ const dbInfo=S.dbStats?`Persistent SQLite: <b>${S.dbStats.total_days}</b> days stored (${S.dbStats.min_date||'–'} to ${S.dbStats.max_date||'–'}), <b>${S.dbStats.total_walks}</b> walk tests.`:"Database connection active.";
+ return `<div class="card"><h2>Data sources &amp; Smartwatch Upload</h2>
+ <p class="sm">${dbInfo}</p>
+ <div class="row">
+   <label class="btn p">Import Smartwatch CSV / JSON<input id="file" type="file" accept=".csv,.json,.txt,.tsv" class="hide"></label>
+   <button class="btn" id="dlWearableCsv">Download Daily CSV</button>
+   <button class="btn" id="dlWearableJson">Download JSON</button>
+   <button class="btn" id="refBtn">Refresh from Database</button>
+   <button class="btn" data-demo="1">Load synthetic demo</button>
+   <select id="scn">${["healthy","stable","declining","improving","noisy","missing"].map(s=>`<option ${s===S.scn?"selected":""}>${s}</option>`).join("")}</select>
+   ${S.src==="demo"?`<button class="btn p" id="saveDemoBtn">Save demo data to SQLite Database</button>`:""}
+   <button class="btn danger" id="resetDbBtn">Clear DB</button>
+ </div>
+ <p class="sm"><b>Supported Smartwatch columns:</b> date/timestamp, heart_rate (resting), spo2/oxygen, steps, distance_km/m, sleep_hours, walking_speed, activity_minutes, hrv/rmssd, symptoms. All column aliases are automatically detected, converted, and aggregated intraday.</p></div>
+ <div class="grid" style="margin-top:12px"><div class="card"><h2>Capability detection</h2><div class="scroll"><table>${rows.map((r,i)=>`<tr>${r.map(c=>i?`<td>${c}</td>`:`<th>${c}</th>`).join("")}</tr>`).join("")}</table></div></div>
+ <div class="card"><h2>Data quality ${A.q}/100 · ${qLab(A.q)}</h2><div class="bar"><i style="width:${A.q}%"></i></div><div class="sm">Based on 30-day completeness, implausible SpO₂ values, recent dropouts, duplicates and record count. Lower quality lowers forecast confidence.</div>${chart([{y:D.slice(-60).map(d=>M.filter(m=>d[m.k]!=null).length/M.length*100)}],{lo:0,hi:100})}<div class="sm">Daily completeness (%)</div></div></div>`}
+
+function reports(A){const an=anomalies(A);
+ return `<div class="card"><h2>Clinician-ready report &amp; Data Export</h2><div class="row">
+ <button class="btn p" id="exC">Download Daily CSV</button>
+ <button class="btn" id="exW">Download Walks CSV</button>
+ <button class="btn" id="exJ">Download Full JSON</button>
+ <button class="btn" id="pdf">Print / Save PDF</button>
+ </div>
+ <div id="rep"><p><b>Data:</b> ${S.src==="demo"?"DEMO / SYNTHETIC DATA ("+S.scn+")":S.src==="live"?"Live Bluetooth wearable data":S.src==="db"?"Persistent SQLite Database Records ("+S.days.length+" days)":"Imported data"} · ${S.days.length?S.days[0].date:"–"} to ${S.days.length?S.days[S.days.length-1].date:"–"} · quality ${A.q}/100</p><p><b>Status:</b> ${A.status} · VFPS ${A.score==null?"–":Math.round(A.score)}/100 · ${A.fc?`forecast 7d ${Math.round(A.fc[7])}, 30d ${Math.round(A.fc[30])}, 90d ${Math.round(A.fc[90])} (confidence ${Math.round(A.conf*100)}%)`:A.note}</p>
+ <p><b>Changes:</b></p><ul>${an.map(a=>`<li>${a.t}</li>`).join("")}</ul><p><b>Walk tests:</b> ${S.walks.length||"none logged"} · <b>Clinical reference (ABI):</b> ${S.profile.abi||"not entered"}</p></div></div>`}
+
+function settings(){const p=S.profile;
+ return `<div class="grid"><div class="card"><h2>Risk factors (optional, entered by you)</h2><div class="row"><label class="f">Age<input id="pa" type="number" value="${p.age||""}"></label><label class="f">Clinician ABI (reference)<input id="pb" value="${p.abi||""}" placeholder="e.g. 0.82"></label></div><div class="row">${[["smoker","Smoker"],["diabetes","Diabetes"],["htn","Hypertension"],["pad","Known PAD"]].map(([k,l])=>`<label><input type="checkbox" data-pf="${k}" ${p[k]?"checked":""}> ${l}</label>`).join(" ")}</div><button class="btn p" id="sp">Save to Database</button><div class="sm">Used only when provided. Clinical values are kept separate from wearable data and never inferred.</div></div>
+ <div class="card"><h2>VFPS weights (%)</h2>${Object.keys(S.weights).map(k=>`<label class="f">${k}: <b>${S.weights[k]}</b><input type="range" min="0" max="50" value="${S.weights[k]}" data-w="${k}"></label>`).join("")}<button class="btn" id="rw">Reset defaults</button><div class="sm">Weights are renormalised across available components. Stored in SQLite database.</div></div>
+ <div class="card"><h2>Backend &amp; Database Status</h2>
+ <div class="sm">
+   <b>Status:</b> ${S.backendConnected?"Connected & Active":"Disconnected"}<br>
+   <b>Database Engine:</b> SQLite (WAL enabled)<br>
+   <b>Database Location:</b> <code>data/pad_database.db</code><br>
+   <b>Stored Days:</b> ${S.days.length}<br>
+   <b>Stored Walk Tests:</b> ${S.walks.length}<br>
+   <b>API Endpoints:</b> <code>/api/health</code>, <code>/api/status</code>, <code>/api/days</code>, <code>/api/walks</code>, <code>/api/upload</code>, <code>/api/export</code>, <code>/api/settings</code><br>
+   <b>Future AI Extension:</b> Modular Python pipeline ready in <code>backend/services/pad_analytics.py</code>.
+ </div>
+ </div></div>`}
+
+function render(){
+ const badge=$("#srcBadge");
+ if(badge){
+   if(S.src==="demo"){
+     badge.textContent=`DEMO / SYNTHETIC DATA (${S.scn.toUpperCase()})`;
+     badge.className="pill watch";
+   }else if(S.src==="db"){
+     badge.textContent=`DATABASE (${S.days.length} DAYS)`;
+     badge.className="pill ok";
+   }else if(S.src==="live"){
+     badge.textContent="LIVE WATCH DATA";
+     badge.className="pill info";
+   }else if(S.src==="import"){
+     badge.textContent="IMPORTED DATA";
+     badge.className="pill info";
+   }else{
+     badge.textContent="NO DATA";
+     badge.className="pill watch";
+   }
+ }
+ $("#nav").innerHTML=TABS.map(t=>`<button class="${t===S.tab?"on":""}" data-t="${t}">${t}</button>`).join("");
+ const v=$("#view");
+ if(S.tab==="Live Watch"){v.innerHTML=liveView();bind();return}
+ if(!S.days.length){
+   v.innerHTML=`<div class="card"><h2>Load data to begin</h2><p>Your SQLite database currently contains no records. Import your smartwatch CSV / JSON file or load a synthetic demo scenario.</p><div class="row"><label class="btn p">Import Smartwatch CSV / JSON<input id="file" type="file" accept=".csv,.json,.txt,.tsv" class="hide"></label><button class="btn" data-demo="1">Load synthetic demo</button><button class="btn" id="refBtn">Check Database</button></div></div>`;
+   bind();return;
+ }
+ const A=analyse();
+ if(!A){
+   v.innerHTML=`<div class="card"><h2>Not enough longitudinal data yet</h2><p>${S.days.length} day(s) stored; at least 3 are needed for trends, and about 14 or more for a reliable personal baseline and forecast. Import your smartwatch history under Wearable Data.</p><div class="row"><label class="btn p">Import CSV / JSON<input id="file" type="file" accept=".csv,.json" class="hide"></label><button class="btn" data-demo="1">Load synthetic demo</button></div></div>`;
+   bind();return;
+ }
+ const f={Dashboard:dash,Trends:trends,Progression:progression,"Walk & Symptoms":walks,"Wearable Data":wearable,Reports:reports,Settings:settings}[S.tab];
+ v.innerHTML=f(A);
+ bind(A);
+}
+
+function bind(A){
+ document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{S.tab=b.dataset.t;render()});
+ document.querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>{S.range=+b.dataset.r;render()});
+ document.querySelectorAll("[data-demo]").forEach(b=>b.onclick=()=>load(($("#scn")||{}).value||"declining"));
+ liveBind();
+
+ const fi=$("#file");
+ if(fi)fi.onchange=()=>{if(fi.files[0])uploadSmartwatchFile(fi.files[0])};
+
+ const sc=$("#scn");
+ if(sc)sc.onchange=()=>load(sc.value);
+
+ const ms=$("#metSel");
+ if(ms)ms.onchange=()=>{S.metric=ms.value;render()};
+
+ document.querySelectorAll(".an").forEach(a=>a.onclick=()=>{const k=a.dataset.k;if(M.some(m=>m.k===k)){S.metric=k;S.tab="Trends";render()}});
+ document.querySelectorAll("[data-sim]").forEach(i=>i.oninput=()=>{S.sim[i.dataset.sim]=+i.value;render()});
+
+ document.querySelectorAll("[data-w]").forEach(i=>i.onchange=async()=>{
+   S.weights[i.dataset.w]=+i.value;
+   LS.set("c.w",S.weights);
+   render();
+   try{await fetch(`${API_BASE}/api/settings`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({weights:S.weights})});}catch(e){}
+ });
+
+ const rw=$("#rw");
+ if(rw)rw.onclick=async()=>{
+   S.weights=Object.assign({},W0);
+   LS.set("c.w",S.weights);
+   render();
+   try{await fetch(`${API_BASE}/api/settings`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({weights:S.weights})});}catch(e){}
+ };
+
+ const sp=$("#sp");
+ if(sp)sp.onclick=async()=>{
+   const p={age:+$("#pa").value||null,abi:$("#pb").value};
+   document.querySelectorAll("[data-pf]").forEach(c=>p[c.dataset.pf]=c.checked);
+   S.profile=p;
+   LS.set("c.profile",p);
+   try{
+     await fetch(`${API_BASE}/api/settings`,{
+       method:"POST",
+       headers:{"Content-Type":"application/json"},
+       body:JSON.stringify({profile:p,weights:S.weights})
+     });
+     notify("Profile settings saved to SQLite database.");
+   }catch(e){
+     notify("Settings saved locally in browser.");
+   }
+   render();
+ };
+
+ const aw=$("#addW");
+ if(aw)aw.onclick=async()=>{
+   const g=i=>+$(i).value||null,d=g("#wd");
+   if(!d){alert("Enter distance in meters.");return}
+   const walkObj={date:fd(Date.now()),dur:6,dist:d,avg:g("#wa"),peak:g("#wp"),rec:g("#wr"),spo2:g("#ws")};
+   try{
+     const r=await fetch(`${API_BASE}/api/walks`,{
+       method:"POST",
+       headers:{"Content-Type":"application/json"},
+       body:JSON.stringify(walkObj)
+     });
+     if(r.ok){
+       const saved=await r.json();
+       S.walks.push(saved);
+       notify("Walk test saved to SQLite database.");
+     }else{
+       S.walks.push(walkObj);
+     }
+   }catch(e){
+     S.walks.push(walkObj);
+   }
+   render();
+ };
+
+ const as=$("#addS");
+ if(as)as.onclick=async()=>{
+   const today=fd(Date.now());
+   const symVal=+$("#sv").value;
+   const symName=$("#sy").value;
+   let l=S.days.find(d=>d.date===today);
+   if(!l){
+     l={date:today,steps:null,dist:null,speed:null,active:null,rhr:null,hrv:null,spo2:null,sleep:null,sym:symVal,symName:symName};
+     S.days.push(l);
+     S.days.sort((a,b)=>a.date<b.date?-1:1);
+   }else{
+     l.sym=symVal;
+     l.symName=symName;
+   }
+   try{
+     await fetch(`${API_BASE}/api/days/${today}`,{
+       method:"PUT",
+       headers:{"Content-Type":"application/json"},
+       body:JSON.stringify({sym:symVal,symName:symName})
+     });
+     notify("Symptom recorded and saved to SQLite.");
+   }catch(e){}
+   render();
+ };
+
+ const refBtn=$("#refBtn");
+ if(refBtn)refBtn.onclick=()=>loadFromBackend(true);
+
+ const saveDemoBtn=$("#saveDemoBtn");
+ if(saveDemoBtn)saveDemoBtn.onclick=saveDemoToDatabase;
+
+ const resetDbBtn=$("#resetDbBtn");
+ if(resetDbBtn)resetDbBtn.onclick=resetDatabaseRecords;
+
+ function triggerDownload(filename, content, mimeType) {
+   try {
+     const blob = (content instanceof Blob) ? content : new Blob([content], { type: `${mimeType};charset=utf-8;` });
+     const url = URL.createObjectURL(blob);
+     const a = document.createElement("a");
+     a.style.display = "none";
+     a.href = url;
+     a.download = filename;
+     document.body.appendChild(a);
+     a.click();
+     setTimeout(() => {
+       if (a.parentNode) document.body.removeChild(a);
+       URL.revokeObjectURL(url);
+     }, 1000);
+     notify(`Downloaded ${filename} successfully!`);
+   } catch (err) {
+     console.error("Download failed:", err);
+     alert("Download error: " + err.message);
+   }
+ }
+
+ function exportDailyCsv() {
+   if (!S.days || !S.days.length) {
+     alert("No daily measurements stored to download.");
+     return;
+   }
+   const headers = ["date", "steps", "distance_km", "walking_speed_kmh", "active_minutes", "resting_hr_bpm", "hrv_ms", "spo2_pct", "sleep_hours", "symptom_severity", "symptom_name", "source"];
+   const rows = S.days.map(d => [
+     d.date,
+     d.steps ?? "",
+     d.dist ?? "",
+     d.speed ?? "",
+     d.active ?? "",
+     d.rhr ?? "",
+     d.hrv ?? "",
+     d.spo2 ?? "",
+     d.sleep ?? "",
+     d.sym ?? 0,
+     `"${(d.symName || "").replace(/"/g, '""')}"`,
+     d.source || "database"
+   ].join(","));
+   const csvContent = [headers.join(",")].concat(rows).join("\r\n");
+   triggerDownload(`pad_daily_measurements_${fd(Date.now())}.csv`, csvContent, "text/csv");
+ }
+
+ function exportWalksCsv() {
+   if (!S.walks || !S.walks.length) {
+     alert("No walk test sessions stored to download.");
+     return;
+   }
+   const headers = ["date", "duration_min", "distance_m", "avg_hr_bpm", "peak_hr_bpm", "recovery_hr_bpm", "min_spo2_pct", "notes"];
+   const rows = S.walks.map(w => [
+     w.date,
+     w.dur ?? 6,
+     w.dist ?? "",
+     w.avg ?? "",
+     w.peak ?? "",
+     w.rec ?? "",
+     w.spo2 ?? "",
+     `"${(w.notes || "").replace(/"/g, '""')}"`
+   ].join(","));
+   const csvContent = [headers.join(",")].concat(rows).join("\r\n");
+   triggerDownload(`pad_walking_sessions_${fd(Date.now())}.csv`, csvContent, "text/csv");
+ }
+
+ function exportFullJson(anContext) {
+   if (!S.days || !S.days.length) {
+     alert("No data available to download.");
+     return;
+   }
+   const data = {
+     application: "Circulation – PAD Progression Monitor",
+     exported_at: new Date().toISOString(),
+     source: S.src,
+     status: anContext ? anContext.status : "UNKNOWN",
+     vfps_score: anContext ? (anContext.score != null ? Math.round(anContext.score) : null) : null,
+     forecast: anContext ? anContext.fc : null,
+     confidence: anContext ? (anContext.conf != null ? Math.round(anContext.conf * 100) : null) : null,
+     data_quality: anContext ? anContext.q : null,
+     baseline: anContext ? anContext.B : null,
+     components: anContext ? anContext.c : null,
+     profile: S.profile,
+     weights: S.weights,
+     total_days: S.days.length,
+     total_walks: S.walks.length,
+     walks: S.walks,
+     days: S.days
+   };
+   triggerDownload(`pad_progression_report_${fd(Date.now())}.json`, JSON.stringify(data, null, 2), "application/json");
+ }
+
+ const dlWearable = $("#dlWearableCsv");
+ if (dlWearable) dlWearable.onclick = exportDailyCsv;
+
+ const dlWearableJ = $("#dlWearableJson");
+ if (dlWearableJ) dlWearableJ.onclick = () => exportFullJson(A);
+
+ const pj = $("#pdf");
+ if (pj) pj.onclick = () => window.print();
+
+ const ec = $("#exC");
+ if (ec) ec.onclick = exportDailyCsv;
+
+ const ew = $("#exW");
+ if (ew) ew.onclick = exportWalksCsv;
+
+ const ej = $("#exJ");
+ if (ej) ej.onclick = () => exportFullJson(A);
+}
+
+// Initial application startup: load from SQLite database
+(async function init(){
+  render();
+  await loadFromBackend();
+})();
+</script></body></html>
